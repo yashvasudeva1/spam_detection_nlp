@@ -59,20 +59,20 @@ The imbalance is intentional and reflects real-world spam detection systems.
 ## Technology Stack
 
 ### Core Libraries
-- Python
-- Pandas
-- NumPy
-- Scikit-learn
-- NLTK
+- Python  
+- Pandas  
+- NumPy  
+- Scikit-learn  
+- NLTK  
 
 ### NLP and Modeling
-- TF-IDF Vectorization
-- Multinomial Naive Bayes
-- Threshold-based classification
+- TF-IDF Vectorization  
+- Multinomial Naive Bayes  
+- Threshold-based classification  
 
 ### Deployment and Visualization
-- Streamlit
-- Plotly
+- Streamlit  
+- Plotly  
 
 ---
 
@@ -131,13 +131,13 @@ The model and TF-IDF vectorizer are combined using a Scikit-learn Pipeline for c
 ## Handling Class Imbalance
 
 ### Observations
-- The dataset is heavily skewed toward Ham messages
-- Default classification thresholds bias predictions toward Ham
+- The dataset is heavily skewed toward Ham messages  
+- Default classification thresholds bias predictions toward Ham  
 
 ### Solutions Implemented
-- Decision threshold tuning
-- Evaluation using recall, precision, and F1-score instead of accuracy alone
-- Acceptance of reduced precision to significantly improve spam recall
+- Decision threshold tuning  
+- Evaluation using recall, precision, and F1-score instead of accuracy alone  
+- Acceptance of reduced precision to significantly improve spam recall  
 
 This mirrors real-world spam filtering systems, where false negatives are more costly than false positives.
 
@@ -150,7 +150,7 @@ This mirrors real-world spam filtering systems, where false negatives are more c
 | Ham | 0.995 | 0.913 | 0.953 |
 | Spam | 0.633 | 0.973 | 0.767 |
 
-Key Insight:  
+**Key Insight:**  
 The model successfully detects more than 97% of spam messages, minimizing spam leakage.
 
 ---
@@ -189,71 +189,16 @@ This provides transparency into how the model makes predictions.
 
 ---
 
-## Project Structure
+## Project Workflow
 
-spam-detection/
+```
+spam-detection-nlp/
 │
-├── app.py # Streamlit application
-├── train_model.py # Model training and serialization
-├── spam_model.pkl # Saved TF-IDF + Naive Bayes pipeline
-├── spam.csv # Dataset
-├── requirements.txt # Dependencies
-└── README.md # Project documentation
-
-yaml
-Copy code
-
----
-
-## How to Run the Project
-
-### Install dependencies
-```bash
-pip install -r requirements.txt
-Train the model
-bash
-Copy code
-python train_model.py
-Run the Streamlit application
-bash
-Copy code
-streamlit run app.py
-Future Improvements
-Precision–Recall curve visualization
-
-Automated threshold optimization
-
-Comparison with Logistic Regression and SVM
-
-Batch message prediction
-
-Per-message explainability
-
-Author
-Yash Vasudeva
-Data and AI Enthusiast
-
-LinkedIn: https://www.linkedin.com/in/yash-vasudeva/
-GitHub: https://github.com/yashvasudeva1
-Portfolio: https://yashvasudeva.vercel.app/
-
-Final Note
-This project emphasizes real-world machine learning decision-making rather than superficial metric optimization.
-It demonstrates not only how to build a model, but how to evaluate, deploy, and reason about it like a machine learning practitioner.
-
-yaml
-Copy code
-
----
-
-If you want next, I can:
-- shorten this for a resume section  
-- tailor it for internship applications  
-- align it stylistically with your California Housing project  
-
-Just tell me.
-
-
-
-
-
+├── app.py                  # Streamlit application (inference only)
+├── train_model.py          # Model training and pipeline serialization
+├── spam_model.pkl          # Saved TF-IDF + Naive Bayes pipeline
+├── spam.csv                # SMS Spam Collection dataset
+├── requirements.txt        # Project dependencies
+├── README.md               # Project documentation
+└── .gitignore              # Git ignore file
+```
