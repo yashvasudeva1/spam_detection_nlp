@@ -24,9 +24,9 @@ st.set_page_config(
 
 # ---------------- Load Model & Data ----------------
 try:
-    pipeline = pickle.load(open("models/spam_model.pkl", "rb"))
+    pipeline = pickle.load(open("models/spam_model_balanced.pkl", "rb"))
 except FileNotFoundError:
-    st.error("Model file 'spam_model.pkl' not found.")
+    st.error("Model file 'spam_model_balanced.pkl' not found.")
     st.stop()
 
 try:
@@ -37,23 +37,44 @@ except FileNotFoundError:
     st.error("Dataset 'spam.csv' not found.")
     st.stop()
 
+
+def create_balanced_dataset(input_df, random_state=42):
+    ham_df = input_df[input_df["label"] == 0]
+    spam_df = input_df[input_df["label"] == 1]
+    minority_count = min(len(ham_df), len(spam_df))
+
+    ham_sampled = ham_df.sample(n=minority_count, random_state=random_state)
+    spam_sampled = spam_df.sample(n=minority_count, random_state=random_state)
+    balanced_df = pd.concat([ham_sampled, spam_sampled], axis=0)
+    return balanced_df.sample(frac=1.0, random_state=random_state).reset_index(drop=True)
+
+
+def compute_metrics(y_true, y_pred):
+    return {
+        "Accuracy": accuracy_score(y_true, y_pred),
+        "Precision": precision_score(y_true, y_pred),
+        "Recall": recall_score(y_true, y_pred),
+        "F1 Score": f1_score(y_true, y_pred),
+    }
+
 # ---------------- Metrics (Test Set) ----------------
-X = df["message"]
-y = df["label"]
+balanced_df = create_balanced_dataset(df, random_state=42)
+X = balanced_df["message"]
+y = balanced_df["label"]
 
 from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
+y_train_pred = pipeline.predict(X_train)
 y_pred = pipeline.predict(X_test)
-y_prob = pipeline.predict_proba(X_test)[:, 1]
 
-acc = accuracy_score(y_test, y_pred)
-prec = precision_score(y_test, y_pred)
-rec = recall_score(y_test, y_pred)
-f1 = f1_score(y_test, y_pred)
-cm = confusion_matrix(y_test, y_pred)
+train_metrics = compute_metrics(y_train, y_train_pred)
+test_metrics = compute_metrics(y_test, y_pred)
+
+cm_train = confusion_matrix(y_train, y_train_pred)
+cm_test = confusion_matrix(y_test, y_pred)
 
 # ---------------- Header ----------------
 st.title("Spam vs Ham Detection System")
@@ -72,6 +93,7 @@ st.sidebar.subheader("Model Info")
 st.sidebar.write("Algorithm: Multinomial Naive Bayes")
 st.sidebar.write("Vectorizer: TF-IDF")
 st.sidebar.write("Features: 3000")
+st.sidebar.write("Training Data: Balanced 1:1 (Ham/Spam)")
 
 # ================= HOME =================
 if page == "Home":
@@ -85,7 +107,10 @@ if page == "Home":
     col1.metric("Total Messages", f"{len(df):,}")
     col2.metric("Spam Messages", int(df["label"].sum()))
     col3.metric("Ham Messages", int((df["label"] == 0).sum()))
-    col4.metric("Test Accuracy", f"{acc:.2%}")
+    col4.metric(
+        "Train/Test Accuracy",
+        f"{train_metrics['Accuracy']:.2%} / {test_metrics['Accuracy']:.2%}"
+    )
 
     st.markdown("---")
     st.subheader("Sample Messages")
@@ -120,41 +145,84 @@ elif page == "Data Overview":
 
 # ================= MODEL PERFORMANCE =================
 elif page == "Model Performance":
-    st.header("Model Performance (Test Set)")
+    st.header("Model Performance (Train + Test)")
 
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Accuracy", f"{acc:.3f}")
-    col2.metric("Precision", f"{prec:.3f}")
-    col3.metric("Recall", f"{rec:.3f}")
-    col4.metric("F1 Score", f"{f1:.3f}")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Train Metrics")
+        st.metric("Accuracy", f"{train_metrics['Accuracy']:.3f}")
+        st.metric("Precision", f"{train_metrics['Precision']:.3f}")
+        st.metric("Recall", f"{train_metrics['Recall']:.3f}")
+        st.metric("F1 Score", f"{train_metrics['F1 Score']:.3f}")
+
+    with col2:
+        st.subheader("Test Metrics")
+        st.metric("Accuracy", f"{test_metrics['Accuracy']:.3f}")
+        st.metric("Precision", f"{test_metrics['Precision']:.3f}")
+        st.metric("Recall", f"{test_metrics['Recall']:.3f}")
+        st.metric("F1 Score", f"{test_metrics['F1 Score']:.3f}")
 
     st.markdown("---")
 
-    st.subheader("Confusion Matrix")
-    fig = go.Figure(data=go.Heatmap(
-        z=cm,
-        x=["Ham", "Spam"],
-        y=["Ham", "Spam"],
-        text=cm,
-        texttemplate="%{text}",
-        colorscale="Blues"
-    ))
-    fig.update_layout(
-        xaxis_title="Predicted",
-        yaxis_title="Actual",
-        height=400
-    )
-    st.plotly_chart(fig)
+    st.subheader("Confusion Matrices")
+    cm_col1, cm_col2 = st.columns(2)
 
-    st.subheader("Classification Report")
-    report_dict = classification_report(
+    with cm_col1:
+        fig_train = go.Figure(data=go.Heatmap(
+            z=cm_train,
+            x=["Ham", "Spam"],
+            y=["Ham", "Spam"],
+            text=cm_train,
+            texttemplate="%{text}",
+            colorscale="Greens"
+        ))
+        fig_train.update_layout(
+            title="Train Confusion Matrix",
+            xaxis_title="Predicted",
+            yaxis_title="Actual",
+            height=400
+        )
+        st.plotly_chart(fig_train)
+
+    with cm_col2:
+        fig_test = go.Figure(data=go.Heatmap(
+            z=cm_test,
+            x=["Ham", "Spam"],
+            y=["Ham", "Spam"],
+            text=cm_test,
+            texttemplate="%{text}",
+            colorscale="Blues"
+        ))
+        fig_test.update_layout(
+            title="Test Confusion Matrix",
+            xaxis_title="Predicted",
+            yaxis_title="Actual",
+            height=400
+        )
+        st.plotly_chart(fig_test)
+
+    st.subheader("Classification Reports")
+    report_train_dict = classification_report(
+        y_train,
+        y_train_pred,
+        target_names=["Ham", "Spam"],
+        output_dict=True
+    )
+    report_test_dict = classification_report(
         y_test,
         y_pred,
         target_names=["Ham", "Spam"],
         output_dict=True
     )
-    report_df = pd.DataFrame(report_dict).transpose()
-    st.dataframe(report_df, use_container_width=True)
+
+    report_col1, report_col2 = st.columns(2)
+    with report_col1:
+        st.write("Train Report")
+        st.dataframe(pd.DataFrame(report_train_dict).transpose(), use_container_width=True)
+
+    with report_col2:
+        st.write("Test Report")
+        st.dataframe(pd.DataFrame(report_test_dict).transpose(), use_container_width=True)
 
 # ================= PREDICTION =================
 elif page == "Make Predictions":
@@ -225,7 +293,7 @@ elif page == "Model Insights":
     with col2:
         st.subheader("Top Ham Indicators")
         st.dataframe(ham_df, use_container_width=True)
-    st.write('After addressing class imbalance via threshold tuning, the model achieves a spam recall of over 97%, ensuring minimal spam leakage. Although precision decreases, this trade-off is acceptable for spam detection where false negatives are costlier than false positives')
+    st.write("This model is trained on a 1:1 balanced ham/spam dataset to reduce class bias and provide more stable performance across both classes.")
 # ---------------- Footer ----------------
 def about_the_coder():
     # We use a non-indented string to prevent Markdown from treating it as code
